@@ -1,6 +1,6 @@
 import asyncio
 
-from websockets import server, Server, ServerConnection
+from websockets import serve, Server, ServerConnection
 
 from ..logger import init_logger
 
@@ -16,10 +16,10 @@ class Host:
         self._port = port
         
         self._server : Server | None = None
-        self._logger = init_logger()
+        self._logger = init_logger('host')
         
     
-    async def handle_conn(self, websocket: ServerConnection) -> None:
+    async def _handle_conn(self, websocket: ServerConnection) -> None:
         
         self._logger.info(f'Client connected {websocket.remote_address}')
         
@@ -28,4 +28,14 @@ class Host:
         self._logger.info(f'Client disconnected {websocket.remote_address}')
         
         
-    
+    async def run(self):
+        self.server = await serve(
+            self._handle_conn,
+            self._host,
+            self._port,
+        )
+
+        self._logger.info(f"Server running on ws://{self._host}:{self._port}")
+        
+        await self.server.serve_forever()
+        

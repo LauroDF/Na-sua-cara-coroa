@@ -6,7 +6,7 @@ def init_logger(name: str = __name__) -> logging.Logger:
     
     logger.setLevel(logging.DEBUG)
     
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(
