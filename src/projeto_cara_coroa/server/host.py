@@ -23,9 +23,18 @@ class Host:
         
         self._logger.info(f'Client connected {websocket.remote_address}')
         
-        await websocket.wait_closed()
+        async for message in websocket:
+            self._logger.info(f'Recieved message from {websocket.remote_address}: {message}')
+            
+            await self._send_message(websocket, f'Echo: {message}')
         
         self._logger.info(f'Client disconnected {websocket.remote_address}')
+        
+        
+    async def _send_message(self, websocket: ServerConnection, message: str):
+        self._logger.info(f'Sending message to {websocket.remote_address}: {message}')
+        
+        await websocket.send(message)
         
         
     async def run(self):

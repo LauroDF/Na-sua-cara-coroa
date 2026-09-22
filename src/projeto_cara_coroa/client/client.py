@@ -1,6 +1,7 @@
 import asyncio
 from uuid import uuid4
 from websockets.asyncio.client import ClientConnection, connect
+from random import randint
 
 from ..logger import init_logger
 
@@ -20,14 +21,33 @@ class Client:
         
         self._logger.info(f'Conected to {self._uri}')
         
+    
+    async def _send_message(self, message: str):
+        await self._websocket.send(message)
+        
+        
+    async def _receive_messages(self):
+        async for message in self._websocket:
+            pass    
         
     async def run(self):
         await self._connect()
+
+        receiver_task = asyncio.create_task(
+            self._receive_messages()
+        )
+
+        await self._send_message("Hello server")
         
-        if self._websocket is None:
-            raise RuntimeError("Unable to connect to the server")
+        await asyncio.sleep(randint(1,5))
+
+        await self._send_message("Another message")
+
+        await asyncio.sleep(randint(1,5))
+
+        receiver_task.cancel()
         
-        await self._websocket.wait_closed()
+        await self.disconnect()
         
         
     async def disconnect(self):
