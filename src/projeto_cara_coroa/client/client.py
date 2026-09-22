@@ -2,6 +2,7 @@ import asyncio
 from uuid import uuid4
 from websockets.asyncio.client import ClientConnection, connect
 from random import randint
+import json
 
 from ..logger import init_logger
 
@@ -30,21 +31,21 @@ class Client:
         async for message in self._websocket:
             pass    
         
-    async def run(self):
+    async def run(self, messages: list[tuple[dict[str, str], int, int]]):
         await self._connect()
 
         receiver_task = asyncio.create_task(
             self._receive_messages()
         )
-
-        await self._send_message("Hello server")
         
-        await asyncio.sleep(randint(1,5))
+        for message in messages:
 
-        await self._send_message("Another message")
-
-        await asyncio.sleep(randint(1,5))
-
+            await self._send_message(json.dumps(
+                message[0]
+            ))
+        
+            await asyncio.sleep(randint(message[1], message[2]))
+            
         receiver_task.cancel()
         
         await self.disconnect()

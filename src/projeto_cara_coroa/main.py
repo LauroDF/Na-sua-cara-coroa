@@ -12,10 +12,31 @@ async def main():
 
     client_1 = Client()
     client_2 = Client()
+    
+    c1_messages = [
+        (
+            {
+                'type': 'create_room'
+            },
+            1,
+            3
+        )
+    ]
+    
+    c2_messages = [
+        (
+            {
+                'type': 'join_room',
+                'room_id': 'abc'
+            },
+            6,
+            8
+        )
+    ]
 
     await asyncio.gather(
-        client_1.run(),
-        client_2.run(),
+        client_1.run(c1_messages),
+        client_2.run(c2_messages),
     )
 
 
