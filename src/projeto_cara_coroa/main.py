@@ -1,6 +1,6 @@
 import asyncio
 
-from .client.client import Client
+from .client_test.client import Client
 
 from .server.host import Host
 
@@ -18,8 +18,7 @@ async def main():
             {
                 'type': 'create_room'
             },
-            1,
-            3
+            1
         )
     ]
     
@@ -27,10 +26,9 @@ async def main():
         (
             {
                 'type': 'join_room',
-                'room_id': 'abc'
+                'room_id': 'abcdef'
             },
-            6,
-            8
+            6
         )
     ]
 

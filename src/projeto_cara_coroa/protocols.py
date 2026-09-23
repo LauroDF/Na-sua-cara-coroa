@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, TypeAdapter
 from dataclasses import dataclass
-from typing import Literal, Annotated
+from typing import Literal, Annotated, Any
 
 
 class CreateRoomProtocol(BaseModel):
@@ -15,7 +15,7 @@ class JoinRoomProtocol(BaseModel):
 @dataclass(frozen=True, slots=True)
 class ResponseProtocol:
     status: Literal['ok', 'error']
-    message: str
+    message: Any
     
     
 ClientMessage = Annotated[

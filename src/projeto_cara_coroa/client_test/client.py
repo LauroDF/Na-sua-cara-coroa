@@ -31,7 +31,7 @@ class Client:
         async for message in self._websocket:
             pass    
         
-    async def run(self, messages: list[tuple[dict[str, str], int, int]]):
+    async def run(self, messages: list[tuple[dict[str, str], int]]):
         await self._connect()
 
         receiver_task = asyncio.create_task(
@@ -44,7 +44,7 @@ class Client:
                 message[0]
             ))
         
-            await asyncio.sleep(randint(message[1], message[2]))
+            await asyncio.sleep(message[1])
             
         receiver_task.cancel()
         
