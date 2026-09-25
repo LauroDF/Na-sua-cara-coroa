@@ -184,15 +184,3 @@ docker compose up --build
 O servidor ficará disponível em `ws://localhost:8000`. O serviço é definido em `docker-compose.yml` e é construído a partir de `backend/Dockerfile`.
 
 Os módulos de protocolo e schema estão atualmente em arquivos únicos, `backend/src/projeto_cara_coroa/protocols.py` e `backend/src/projeto_cara_coroa/schemas.py`; não existem diretórios `protocols/` ou `schemas/` no backend atual.
-
-## Frontend
-
-O frontend está em `frontend/` e usa a API nativa `WebSocket` do navegador para se conectar ao servidor em `ws://localhost:8000`.
-
-Depois de executar:
-
-```bash
-docker compose up --build
-```
-
-abra `frontend/index.html` no navegador.
