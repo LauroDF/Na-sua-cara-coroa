@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Na sua cara, coroa</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="app">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">JOGO MULTIPLAYER • WEBSOCKET</p>
+                <h1>Na sua cara, coroa</h1>
+            </div>
+            <div id="connectionBadge" class="connection-badge offline">
+                <span class="status-dot"></span>
+                <span id="connectionText">Desconectado</span>
+            </div>
+        </header>
+
+        <section id="homeScreen" class="screen active">
+            <div class="hero-card">
+                <div class="coin coin-large" aria-hidden="true">
+                    <span>CC</span>
+                </div>
+                <div class="hero-copy">
+                    <p class="eyebrow">CARA OU COROA</p>
+                    <h2>Desafie outro jogador.</h2>
+                    <p>Crie uma sala e compartilhe o código, ou entre em uma sala existente.</p>
+                </div>
+            </div>
+
+            <div class="action-grid">
+                <article class="panel">
+                    <h3>Criar sala</h3>
+                    <p>Você será o Player 1.</p>
+                    <button id="createRoomButton" class="button primary">Criar sala</button>
+                </article>
+
+                <article class="panel">
+                    <h3>Entrar em uma sala</h3>
+                    <p>Digite o código de seis caracteres.</p>
+                    <div class="join-row">
+                        <input id="roomInput" type="text" maxlength="6" autocomplete="off"
+                               placeholder="A1B2C3" aria-label="Código da sala">
+                        <button id="joinRoomButton" class="button secondary">Entrar</button>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="waitingScreen" class="screen">
+            <div class="panel waiting-panel">
+                <div class="spinner" aria-hidden="true"></div>
+                <p class="eyebrow">SALA CRIADA</p>
+                <h2>Aguardando o Player 2</h2>
+                <p>Compartilhe este código com o outro jogador.</p>
+
+                <button id="roomCodeButton" class="room-code" title="Copiar código">
+                    <span id="roomCode">------</span>
+                    <small>CLIQUE PARA COPIAR</small>
+                </button>
+
+                <p id="copyFeedback" class="feedback success-feedback" aria-live="polite"></p>
+                <button id="cancelRoomButton" class="button ghost">Sair da sala</button>
+            </div>
+        </section>
+
+        <section id="gameScreen" class="screen">
+            <div class="game-header">
+                <div>
+                    <p class="eyebrow" id="roleLabel">PLAYER</p>
+                    <h2>Partida</h2>
+                </div>
+                <div class="room-pill">Sala <strong id="gameRoomCode">------</strong></div>
+            </div>
+
+            <div class="scoreboard">
+                <article id="hostPlayerCard" class="player-card">
+                    <span class="player-label">PLAYER 1</span>
+                    <strong id="hostScore">0</strong>
+                    <span>Pontos</span>
+                    <div id="hostEffect" class="player-effect hidden"></div>
+                </article>
+
+                <div class="vs">VS</div>
+
+                <article id="guestPlayerCard" class="player-card">
+                    <span class="player-label">PLAYER 2</span>
+                    <strong id="guestScore">0</strong>
+                    <span>Pontos</span>
+                    <div id="guestEffect" class="player-effect hidden"></div>
+                </article>
+            </div>
+
+            <div class="game-panel panel">
+                <div id="gameStatus" class="game-status" aria-live="polite">
+                    Escolha cara ou coroa.
+                </div>
+
+                <div id="coinResult" class="coin-result" aria-live="polite">
+                    <div class="coin" id="resultCoin">
+                        <span id="resultCoinText">?</span>
+                    </div>
+                    <p id="resultText">Aguardando resultado</p>
+                </div>
+
+                <div id="choiceButtons" class="choice-grid">
+                    <button class="choice-button" data-choice="heads">
+                        <span class="choice-symbol">:D</span>
+                        <strong>Cara</strong>
+                        <small>HEADS</small>
+                    </button>
+                    <button class="choice-button" data-choice="tails">
+                        <span class="choice-symbol">W</span>
+                        <strong>Coroa</strong>
+                        <small>TAILS</small>
+                    </button>
+                </div>
+
+                <div id="waitingChoice" class="waiting-choice hidden">
+                    <div class="mini-spinner"></div>
+                    <span>Esperando a escolha do outro jogador...</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="finishScreen" class="screen">
+            <div class="panel finish-panel">
+                <p class="eyebrow">FIM DE JOGO</p>
+                <h2 id="winnerTitle">Partida encerrada</h2>
+                <p id="winnerDescription"></p>
+
+                <div class="final-score">
+                    <div>
+                        <span>PLAYER 1</span>
+                        <strong id="finalHostScore">0</strong>
+                    </div>
+                    <span class="final-vs">—</span>
+                    <div>
+                        <span>PLAYER 2</span>
+                        <strong id="finalGuestScore">0</strong>
+                    </div>
+                </div>
+
+                <div id="rematchArea">
+                    <p id="rematchStatus" class="rematch-status">
+                        Quer jogar novamente?
+                    </p>
+                    <div class="rematch-actions">
+                        <button id="acceptRematchButton" class="button primary">Jogar novamente</button>
+                        <button id="declineRematchButton" class="button ghost">Encerrar</button>
+                    </div>
+                </div>
+
+                <button id="newConnectionButton" class="button secondary hidden">Voltar ao início</button>
+            </div>
+        </section>
+
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

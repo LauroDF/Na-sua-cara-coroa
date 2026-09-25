@@ -17,6 +17,11 @@ class RoundResult:
     host_score: int
     guest_score: int
     result: CoinChoice
+    host_streak: int
+    guest_streak: int
+    host_bonus: int
+    guest_bonus: int
+    luck_player: str | None
 
 
 @dataclass(slots=True)

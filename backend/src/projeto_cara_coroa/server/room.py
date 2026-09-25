@@ -131,6 +131,16 @@ class Room:
             self._run()
         )
 
+        await self._host.send_message(
+            ResponseProtocol(
+                status="ok",
+                message={
+                    "status": "room_ready",
+                    "room_id": self._id,
+                },
+            )
+        )
+
         return ResponseProtocol(
             status="ok",
             message=asdict(
