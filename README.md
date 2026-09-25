@@ -1,179 +1,430 @@
-# Na sua cara, coroa
+# 🪙 Na sua cara, coroa
 
-## Guia para o frontend
+Aplicação multiplayer de **cara ou coroa** desenvolvida para a disciplina de **Computação Distribuída**, utilizando **WebSocket** para comunicação em tempo real entre jogadores.
 
-Este projeto é um jogo de cara ou coroa para dois jogadores. O backend atual é um servidor WebSocket Python assíncrono; ele não expõe uma API REST. O frontend deve usar a API nativa `WebSocket` do navegador e manter uma conexão persistente com o servidor.
+O projeto é composto por um **servidor assíncrono em Python** responsável pelo estado global e pelas regras da partida, e um **cliente em JavaScript** responsável pela interface e interação com os jogadores.
 
-## Arquitetura
+> Projeto acadêmico — Ciência da Computação
+> Disciplina: Computação Distribuída
+> Professor: Hiago Oliveira
+> Data de apresentação: 25/09/2026
+
+---
+
+## 🎯 Sobre o projeto
+
+**Na sua cara, coroa** é um jogo multiplayer para dois jogadores no qual cada participante escolhe entre **cara** e **coroa** a cada rodada.
+
+A aplicação utiliza WebSocket para manter uma conexão persistente entre cada cliente e o servidor, permitindo que os jogadores participem da mesma partida em tempo real.
+
+O servidor é responsável por:
+
+* Gerenciar as conexões dos jogadores;
+* Criar e administrar salas;
+* Controlar os jogadores de cada sala;
+* Receber as escolhas de cara ou coroa;
+* Sortear o resultado da moeda;
+* Controlar a pontuação;
+* Controlar as sequências de vitórias;
+* Aplicar as mecânicas de recuperação;
+* Determinar o vencedor;
+* Gerenciar o sistema de revanche.
+
+O frontend é responsável por:
+
+* Apresentar a interface do jogo;
+* Criar e entrar em salas;
+* Exibir o código da sala;
+* Permitir a escolha entre cara e coroa;
+* Exibir placar e resultados;
+* Informar o estado da conexão;
+* Exibir as mecânicas especiais da partida;
+* Permitir aceitar ou recusar uma revanche.
+
+---
+
+# 🏗️ Arquitetura
+
+A aplicação possui uma separação clara entre **Cliente** e **Servidor**.
 
 ```text
-Frontend
-	 │
-	 │ WebSocket
-	 ▼
-Python WebSocket Server
-	 │
-	 ├── Host
-	 ├── ClientSession
-	 ├── Room
-	 └── Game
+┌──────────────────────┐
+│      PLAYER 1        │
+│   JavaScript/Web     │
+└──────────┬───────────┘
+           │
+           │ WebSocket
+           │
+           ▼
+┌──────────────────────┐
+│                      │
+│   PYTHON SERVER      │
+│                      │
+│  ┌────────────────┐  │
+│  │     Host       │  │
+│  ├────────────────┤  │
+│  │     Room       │  │
+│  ├────────────────┤  │
+│  │     Game       │  │
+│  └────────────────┘  │
+│                      │
+└──────────┬───────────┘
+           │
+           │ WebSocket
+           │
+           ▼
+┌──────────────────────┐
+│      PLAYER 2        │
+│   JavaScript/Web     │
+└──────────────────────┘
 ```
 
-- **`Host`** (`backend/src/projeto_cara_coroa/server/host.py`) recebe conexões WebSocket, valida cada mensagem JSON com Pydantic, despacha os comandos e mantém os dicionários de salas e sessões.
-- **`ClientSession`** (`backend/src/projeto_cara_coroa/client/session.py`) representa um jogador conectado e guarda a conexão WebSocket desse jogador, além do `room_id` atual.
-- **`Room`** (`backend/src/projeto_cara_coroa/server/room.py`) representa uma partida entre dois jogadores. O criador da sala é o `host`/player 1; quem entra depois é o `guest`/player 2. A sala inicia partidas, aguarda decisões de rematch e pode iniciar novas partidas.
-- **`Game`** (`backend/src/projeto_cara_coroa/server/game.py`) aguarda a escolha dos dois jogadores, sorteia o resultado (`heads` ou `tails`), atualiza `host_score` e `guest_score`, e informa se haverá outra rodada ou se a partida terminou.
+### Servidor
 
-O ponto de entrada é `backend/src/projeto_cara_coroa/main.py`. O servidor usa `asyncio` e a biblioteca `websockets`.
+O servidor mantém o **estado global da aplicação** e concentra as regras do jogo.
 
-## Conexão
+Principais componentes:
 
-- Porta do backend: `8000`
-- Endpoint local: `ws://localhost:8000`
-- Docker publica a porta com `8000:8000` no serviço `server` de `docker-compose.yml`.
+* `Host` — gerencia conexões, salas e mensagens;
+* `Room` — representa uma sala com dois jogadores;
+* `Game` — controla a partida, escolhas, pontuação e resultado;
+* `ClientSession` — representa a conexão de um jogador;
+* `schemas` — estruturas utilizadas para comunicação e validação dos dados.
 
-Exemplo de conexão no navegador:
+### Cliente
 
-```js
-const socket = new WebSocket("ws://localhost:8000");
+O frontend utiliza JavaScript nativo e a API `WebSocket` disponível no navegador.
 
-socket.addEventListener("open", () => {
-	// A conexão está pronta para enviar comandos.
-});
+Principais arquivos:
 
-socket.addEventListener("message", (event) => {
-	const response = JSON.parse(event.data);
-	// Atualize a interface usando response.status e response.message.
-});
-
-socket.addEventListener("close", () => {
-	// Mostre o estado desconectado e permita reconectar quando apropriado.
-});
+```text
+frontend/
+├── index.html
+├── style.css
+├── app.js
+└── README.md
 ```
 
-O fluxo esperado é: conectar → enviar mensagens JSON → receber mensagens assíncronas → atualizar a interface → fechar ou reconectar quando necessário. O servidor não envia uma mensagem inicial de boas-vindas: o frontend deve iniciar o fluxo enviando `create_room` ou `join_room`.
+* `index.html` — estrutura da interface;
+* `style.css` — estilos e animações;
+* `app.js` — conexão WebSocket, interação e atualização da interface;
+* `README.md` — informações específicas sobre o frontend.
 
-## Formato das mensagens
+---
 
-Cada mensagem enviada pelo frontend precisa ter um campo `type`. O backend valida o formato antes de processá-la.
+# 🔌 Comunicação via WebSocket
 
-### Criar uma sala
+O servidor utiliza a seguinte conexão:
 
-```json
-{ "type": "create_room" }
+```text
+ws://localhost:8000
 ```
 
-Resposta de sucesso:
+Não existe uma API REST para as operações do jogo. A comunicação entre cliente e servidor é realizada por mensagens JSON através do WebSocket.
 
-```json
-{ "status": "ok", "message": { "room_id": "A1B2C3" } }
+### Ciclo de vida
+
+A conexão segue, de forma simplificada:
+
+```text
+Cliente
+   │
+   │  Handshake WebSocket
+   ▼
+Servidor
+   │
+   │  Conexão persistente
+   │◄────────────────────►│
+   │    Mensagens JSON    │
+   │◄────────────────────►│
+   │
+   │  Encerramento
+   ▼
+Desconectado
 ```
 
-O `room_id` é um código aleatório de seis caracteres alfanuméricos, convertido para maiúsculas. O jogador que cria a sala torna-se o `host` (player 1).
+A conexão permanece aberta durante a utilização da partida, permitindo que mensagens sejam enviadas entre cliente e servidor sem a necessidade de estabelecer uma nova conexão para cada ação.
 
-### Entrar em uma sala
+---
 
-```json
-{ "type": "join_room", "room_id": "A1B2C3" }
+# 🏠 Salas
+
+Cada partida acontece dentro de uma sala com **dois jogadores**.
+
+O primeiro jogador cria a sala e se torna o **Player 1**.
+
+O segundo jogador utiliza o código da sala para entrar e se torna o **Player 2**.
+
+Exemplo:
+
+```text
+Player 1
+   │
+   │ create_room
+   ▼
+Servidor
+   │
+   └──► Sala: A1B2C3
+              │
+              │ join_room
+              ▼
+           Player 2
 ```
 
-Resposta de sucesso:
+Quando o segundo jogador entra, o servidor envia uma notificação `room_ready` ao primeiro jogador para que ambos possam iniciar a partida.
 
-```json
-{ "status": "ok", "message": { "room_id": "A1B2C3" } }
-```
+---
 
-O backend normaliza o código recebido para maiúsculas. Uma sala aceita somente um `guest`; se já houver dois jogadores, a resposta é um erro. Quando o segundo jogador entra, a partida é iniciada automaticamente.
+# 📡 Protocolo de mensagens
 
-### Escolher cara ou coroa
+As mensagens são enviadas em formato JSON.
 
-```json
-{ "type": "coin_choice", "choice": "heads" }
-```
+## Criar sala
 
-Os únicos valores válidos para `choice` são `heads` e `tails`.
-
-O servidor só responde a esse comando depois que os dois jogadores enviarem suas escolhas. A resposta tem este formato:
+Cliente:
 
 ```json
 {
-	"status": "ok",
-	"message": {
-		"status": "next_round",
-		"host_score": 1,
-		"guest_score": 0,
-		"result": "heads"
-	}
+  "type": "create_room"
 }
 ```
 
-Os campos de `message` são:
+O servidor cria uma nova sala e retorna o código correspondente.
 
-- `status`: `next_round` enquanto a partida continua ou `game_finish` quando há um vencedor.
-- `host_score`: pontuação acumulada do player 1.
-- `guest_score`: pontuação acumulada do player 2.
-- `result`: resultado sorteado, `heads` ou `tails`.
+---
 
-O frontend deve associar `host_score` ao criador da sala e `guest_score` ao jogador que entrou nela. A regra implementada encerra a partida quando um jogador alcança pelo menos 5 pontos e a diferença entre as pontuações é de pelo menos 2.
+## Entrar em uma sala
 
-### Solicitar rematch
-
-Depois de receber `status: "game_finish"`, cada jogador deve enviar sua decisão:
+Cliente:
 
 ```json
-{ "type": "rematch", "accept": true }
+{
+  "type": "join_room",
+  "room_id": "A1B2C3"
+}
 ```
 
-`accept` é booleano. O backend aguarda as duas respostas. Somente depois disso cada solicitação pendente recebe uma resposta:
+---
+
+## Escolher cara ou coroa
+
+Cara:
 
 ```json
-{ "status": "ok", "message": { "result": "accepted" } }
+{
+  "type": "coin_choice",
+  "choice": "heads"
+}
 ```
 
-ou:
+Coroa:
 
 ```json
-{ "status": "ok", "message": { "result": "declined" } }
+{
+  "type": "coin_choice",
+  "choice": "tails"
+}
 ```
 
-Se os dois aceitarem, uma nova partida começa na mesma sala e as pontuações são reiniciadas. Se qualquer um recusar, o backend remove os jogadores da sala, mas o código atual não fecha explicitamente as conexões WebSocket; confirme com o responsável pelo backend se o comportamento esperado da interface é fechar também a conexão ou permitir uma nova ação nela.
+O resultado da rodada é enviado somente depois que os dois jogadores realizam suas escolhas.
 
-## Respostas e erros
+---
 
-As respostas normais usam sempre o envelope:
+## Revanche
+
+Aceitar:
 
 ```json
-{ "status": "ok" | "error", "message": "..." }
+{
+  "type": "rematch",
+  "accept": true
+}
 ```
 
-Em sucesso, `message` pode ser um objeto com dados (`room_id`, resultado do jogo ou rematch). Em erros de negócio, atualmente é uma string. Exemplos observados no código:
+Recusar:
 
 ```json
-{ "status": "error", "message": "Room A1B2C3 does not exist." }
+{
+  "type": "rematch",
+  "accept": false
+}
 ```
 
-```json
-{ "status": "error", "message": "Room A1B2C3 is already full." }
+A revanche somente é iniciada quando os dois jogadores respondem.
+
+---
+
+# 🕹️ Regras do jogo
+
+A cada rodada:
+
+1. Os dois jogadores escolhem entre cara e coroa.
+2. O servidor determina o resultado da moeda.
+3. O jogador que escolheu o lado sorteado recebe pontos.
+4. O placar é atualizado.
+5. O servidor verifica as condições da partida.
+6. Uma nova rodada é iniciada caso a partida ainda não tenha terminado.
+
+A moeda utiliza uma escolha aleatória entre:
+
+```text
+heads
+tails
 ```
 
-Também há erros para tentar criar ou entrar em outra sala enquanto a sessão já está em uma sala, escolher antes de a partida começar (`Game has not started yet`) ou solicitar rematch enquanto o jogo ainda está em execução (`Game is still running`).
+---
 
-Mensagens que não obedecem aos schemas de `backend/src/projeto_cara_coroa/protocols.py` são rejeitadas pelo Pydantic. O código prevê retornar `status: "error"` com uma lista de erros de validação, mas atualmente o caminho usado para enviar esse erro chama `_send_message`, método que não está definido em `Host`. Portanto, o frontend deve enviar exatamente os tipos e campos documentados; o formato final de erros de validação ainda precisa ser confirmado ou corrigido no backend.
+# 🔥 Sistema de sequência
 
-## Fluxo recomendado da interface
+O jogo possui uma mecânica de **sequência de acertos**.
 
-1. Abra uma única conexão WebSocket e mantenha-a associada ao estado da sessão.
-2. Para hospedar, envie `create_room` e mostre o `room_id` retornado.
-3. Para entrar, envie `join_room` com o código informado pelo usuário.
-4. Depois de a sala estar completa, habilite a escolha de `heads` ou `tails`.
-5. Desabilite o envio de uma nova escolha até receber o resultado da rodada. A resposta pode demorar porque depende da escolha do outro jogador.
-6. Atualize placar e resultado usando `host_score`, `guest_score` e `result`. Em `game_finish`, mostre a opção de rematch.
-7. Envie `rematch` uma vez por jogador e aguarde a resposta assíncrona.
-8. Trate respostas com `status: "error"`, o evento `close` e o evento `error` do objeto WebSocket como estados de interface distintos, com possibilidade de reconexão conforme a regra do produto.
+Quando um jogador mantém uma sequência de vitórias, seus acertos podem valer mais pontos.
 
-Não há autenticação, identificação pública de jogador, endpoint HTTP, mensagens de presença ou broadcast de estado independente no protocolo atual. Se o frontend precisar desses recursos, eles devem ser combinados com o responsável pelo backend antes de criar um novo contrato.
+A progressão atual é:
 
-## Executar localmente
+```text
+1º acerto consecutivo → +1 ponto
+2º acerto consecutivo → +1 ponto
+3º acerto consecutivo → +1 ponto
+4º acerto consecutivo → +2 pontos
+5º acerto consecutivo → +3 pontos
+6º acerto consecutivo → +4 pontos
+...
+```
+
+Quando o jogador erra, sua sequência é reiniciada.
+
+A interface exibe visualmente o efeito:
+
+```text
+🔥 STREAK X4
+NEXT HIT: +2
+```
+
+---
+
+# 🍀 Sistema de recuperação
+
+Para evitar que uma grande vantagem de pontuação torne a partida pouco competitiva, existe uma mecânica de recuperação.
+
+Quando um jogador está **10 ou mais pontos atrás**, ele recebe uma vantagem probabilística sobre a escolha realizada.
+
+Essa vantagem aumenta quando a diferença é ainda maior.
+
+Os valores exatos da probabilidade são controlados exclusivamente pelo servidor e **não são exibidos aos jogadores**.
+
+Na interface, o jogador recebe apenas a indicação:
+
+```text
+🍀 LUCKY
+CHANCE EXTRA
+```
+
+A mecânica não garante o resultado da rodada; ela apenas modifica a probabilidade utilizada pelo servidor.
+
+---
+
+# 🏆 Condição de vitória
+
+A partida utiliza como pontuação final:
+
+```text
+20 pontos
+```
+
+Para vencer, o jogador precisa:
+
+* alcançar pelo menos 20 pontos;
+* possuir uma vantagem mínima de 2 pontos sobre o adversário.
+
+Exemplos:
+
+```text
+20 × 18 → vitória
+21 × 19 → vitória
+20 × 19 → continua
+```
+
+---
+
+# 🔄 Sistema de revanche
+
+Após o encerramento da partida, os jogadores podem solicitar uma revanche.
+
+Cada jogador pode:
+
+```text
+ACEITAR
+```
+
+ou
+
+```text
+RECUSAR
+```
+
+A nova partida somente começa quando os dois jogadores aceitam.
+
+Caso algum jogador recuse, a sessão da sala é encerrada.
+
+---
+
+# 📁 Estrutura do projeto
+
+```text
+Na-sua-cara-coroa/
+│
+├── backend/
+│   ├── src/
+│   │   └── projeto_cara_coroa/
+│   │       ├── client/
+│   │       ├── server/
+│   │       ├── protocols.py
+│   │       └── schemas.py
+│   │
+│   └── ...
+│
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   ├── app.js
+│   └── README.md
+│
+├── docker-compose.yml
+│
+└── README.md
+```
+
+---
+
+# 🚀 Como executar
+
+## Pré-requisitos
+
+É necessário possuir:
+
+* [Docker](https://www.docker.com/)
+* [Git](https://git-scm.com/)
+* Navegador web moderno;
+* Uma ferramenta para servir o frontend localmente, como o **Live Server** do VS Code.
+
+---
+
+## 1. Clonar o repositório
+
+```bash
+git clone https://github.com/LauroDF/Na-sua-cara-coroa.git
+```
+
+Entrar na pasta:
+
+```bash
+cd Na-sua-cara-coroa
+```
+
+---
+
+## 2. Iniciar o servidor
 
 Na raiz do projeto:
 
@@ -181,6 +432,125 @@ Na raiz do projeto:
 docker compose up --build
 ```
 
-O servidor ficará disponível em `ws://localhost:8000`. O serviço é definido em `docker-compose.yml` e é construído a partir de `backend/Dockerfile`.
+O backend ficará disponível em:
 
-Os módulos de protocolo e schema estão atualmente em arquivos únicos, `backend/src/projeto_cara_coroa/protocols.py` e `backend/src/projeto_cara_coroa/schemas.py`; não existem diretórios `protocols/` ou `schemas/` no backend atual.
+```text
+ws://localhost:8000
+```
+
+---
+
+## 3. Iniciar o frontend
+
+Abra a pasta `frontend` no VS Code.
+
+Utilizando o **Live Server**, abra:
+
+```text
+frontend/index.html
+```
+
+O navegador exibirá a interface do jogo.
+
+---
+
+# 👥 Como testar uma partida
+
+Como o jogo possui dois jogadores, podem ser utilizadas duas abas ou janelas do navegador.
+
+### Player 1
+
+1. Abra o jogo.
+2. Clique em **Criar sala**.
+3. Copie o código da sala.
+
+### Player 2
+
+1. Abra o jogo em outra aba/janela.
+2. Informe o código recebido.
+3. Entre na sala.
+
+### Partida
+
+Depois que os dois jogadores estiverem conectados:
+
+1. Player 1 escolhe cara ou coroa.
+2. Player 2 escolhe cara ou coroa.
+3. O servidor aguarda as duas escolhas.
+4. A moeda é definida.
+5. O placar é atualizado.
+6. Uma nova rodada começa.
+
+A partida continua até que um jogador atinja a condição de vitória.
+
+---
+
+# 🧪 Cenários para demonstração
+
+Durante a apresentação, podem ser demonstrados:
+
+* Criação de uma sala;
+* Entrada de um segundo jogador;
+* Comunicação em tempo real via WebSocket;
+* Escolha simultânea de cara ou coroa;
+* Atualização do placar;
+* Sequência de vitórias;
+* Bônus de pontuação;
+* Mecânica de recuperação;
+* Finalização da partida;
+* Solicitação de revanche;
+* Aceitação ou recusa da revanche;
+* Tratamento de salas inválidas ou cheias;
+* Encerramento da conexão.
+
+---
+
+# 🛠️ Tecnologias utilizadas
+
+### Backend
+
+* Python
+* `asyncio`
+* WebSocket
+* Pydantic
+* Docker
+
+### Frontend
+
+* HTML5
+* CSS3
+* JavaScript
+* WebSocket API
+
+### Controle de versão
+
+* Git
+* GitHub
+
+---
+
+# 🎓 Objetivo acadêmico
+
+O projeto foi desenvolvido para demonstrar conceitos de **Computação Distribuída**, especialmente a comunicação em tempo real utilizando WebSocket.
+
+A aplicação permite observar na prática conceitos como:
+
+* Comunicação cliente-servidor;
+* Conexões persistentes;
+* Handshake WebSocket;
+* Troca de mensagens;
+* Gerenciamento de sessões;
+* Gerenciamento de estado distribuído entre clientes;
+* Concorrência assíncrona;
+* Sincronização entre jogadores;
+* Encerramento de conexões.
+
+A proposta segue os requisitos da atividade da disciplina, que estabelece a utilização de **WebSocket com Python no servidor e JavaScript no cliente**, além da separação entre responsabilidades do servidor e do cliente.
+
+---
+
+# 👨‍💻 Projeto
+
+**Na sua cara, coroa**
+
+Desenvolvido como trabalho acadêmico da disciplina de **Computação Distribuída — Ciência da Computação**.
