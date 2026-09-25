@@ -15,9 +15,12 @@ from .room import Room
 from ..client.session import ClientSession
 
 from ..protocols import (
+    CoinChoice,
     ClientMessage,
     JoinRoomProtocol,
     CreateRoomProtocol,
+    CoinChoiceProtocol,
+    RematchProtocol,
     ResponseProtocol,
 )
 
@@ -37,7 +40,7 @@ class Host:
         self._port = port
         
         self._server : Server | None = None
-        self._logger = init_logger('host')
+        self._logger = init_logger(__name__)
         self._message_adapter = TypeAdapter(ClientMessage)
         
         self._rooms: dict[str, Room] = {}
@@ -49,7 +52,13 @@ class Host:
         return ''.join(choices(pool, k=6)).upper()
         
         
-    def _create_room(self, session: ClientSession) -> ResponseProtocol:
+    async def _create_room(self, session: ClientSession) -> ResponseProtocol:
+        if session.room_id is not None:
+            return ResponseProtocol(
+                status='error',
+                message=f'You are already connected to room {session.room_id}'
+            )
+        
         while True:
             room_id = self._create_random_code()
             if room_id not in self._rooms.keys():
@@ -60,8 +69,6 @@ class Host:
             host=session
         )
         
-        session.connect_to_room(room_id)
-        
         return ResponseProtocol(
             status='ok',
             message=asdict(RoomResponseDTO(
@@ -70,24 +77,68 @@ class Host:
         )
         
         
-    def _join_room(self, session: ClientSession, room_id: str) -> ResponseProtocol:
+    async def _join_room(self, session: ClientSession, room_id: str) -> ResponseProtocol:
+        if session.room_id is not None:
+            return ResponseProtocol(
+                status='error',
+                message=f'You are already connected to room {session.room_id}'
+            )
+                    
         room_id = room_id.upper()
         room = self._rooms.get(room_id)
         
         if room is None:
             return ResponseProtocol('error', f'Room {room_id} does not exist.')
         
-        return room.join_room(session)
+        return await room.join_room(session)
+    
+    
+    async def _coin_choice(self, session: ClientSession, choice: CoinChoice) -> ResponseProtocol:
+        room = self._rooms[session.room_id]
+        
+        game = room.game
+        
+        if game is None:
+            return ResponseProtocol(
+                'error',
+                'Game has not started yet'
+            )
+            
+        game.submit_choice(session=session, choice=choice)
+        
+        return await game.wait_for_result()
+    
+    
+    async def _rematch_requests(self, session: ClientSession, accept: bool) -> ResponseProtocol:
+        room = self._rooms[session.room_id]
+        
+        game = room.game
+        
+        if game is not None:
+            return ResponseProtocol(
+                'error',
+                'Game is still running'
+            )
+        
+        room.set_rematch_choice(session, accept)
+        
+        return await room.wait_for_result()
         
         
-    def _handle_message(self, session: ClientSession, message: Any) -> ResponseProtocol:
+    async def _handle_message(self, session: ClientSession, message: Any) -> ResponseProtocol:
         message = self._message_adapter.validate_json(message)
                         
         if isinstance(message, CreateRoomProtocol):
-            return self._create_room(session)
+            return await self._create_room(session)
             
         elif isinstance(message, JoinRoomProtocol):
-            return self._join_room(session, message.room_id)
+            return await self._join_room(session, message.room_id)
+        
+        elif isinstance(message, CoinChoiceProtocol):
+            return await self._coin_choice(session, message.choice)
+        
+        elif isinstance(message, RematchProtocol):
+            return await self._rematch_requests(session, message.accept)
     
         raise RuntimeError(f'Unable to parse recieved message {message}')
     
@@ -102,15 +153,15 @@ class Host:
         
         async for message in session.websocket:
             try:
-                response = self._handle_message(
+                response = await self._handle_message(
                     session=session,
                     message=message,
                 )
                 
-                await self._send_message(
-                    websocket=websocket, 
+                await session.send_message(
                     message=response
-                )  
+                )
+                self._logger.info(f'Sent message to {session.websocket.remote_address}: {response}')
                 
             except ValidationError as exc:
                 await self._send_message(
@@ -124,13 +175,7 @@ class Host:
         self._logger.info(f'Client disconnected {websocket.remote_address}')
         
         self._sessions.pop(session.id)
-        
-        
-    async def _send_message(self, websocket: ServerConnection, message: ResponseProtocol):
-        self._logger.info(f'Sending message to {websocket.remote_address}: {message}')
-        
-        await websocket.send(json.dumps(asdict(message)))
-        
+
         
     async def run(self):
         self._server = await serve(
