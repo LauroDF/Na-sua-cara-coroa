@@ -3,3 +3,19 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+
+  client:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/Caddyfile:/etc/caddy/Caddyfile
+      - ./frontend:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

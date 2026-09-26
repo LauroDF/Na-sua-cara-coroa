@@ -39,6 +39,11 @@ class Room:
         self._rematch_response: asyncio.Future[RematchResponse]
 
         self._host.connect_to_room(self._id)
+        
+        
+    async def _wait_for_choice( self, future: asyncio.Future[bool]) -> bool:
+        return await future
+        
 
     def _initialize_game(self) -> None:
         self._game = Game(
@@ -66,12 +71,18 @@ class Room:
             self._host_rematch = asyncio.Future()
             self._guest_rematch = asyncio.Future()
             self._rematch_response = asyncio.Future()
-
-            host_choice, guest_choice = await asyncio.gather(
-                self._host_rematch,
-                self._guest_rematch,
-            )
             
+            async with asyncio.TaskGroup() as tg:
+                player_1_task = tg.create_task(
+                    self._wait_for_choice(self._host_rematch)
+                )
+
+                player_2_task = tg.create_task(
+                    self._wait_for_choice(self._guest_rematch)
+                )
+
+            host_choice = player_1_task.result()
+            guest_choice = player_2_task.result()
 
             if not (host_choice and guest_choice):
                 self._rematch_response.set_result(RematchResponse('declined'))

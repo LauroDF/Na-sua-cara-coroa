@@ -1,5 +1,5 @@
 from typing import get_args
-from asyncio import Future, gather
+from asyncio import Future, TaskGroup
 from random import choice, random
 
 from ..logger import init_logger
@@ -41,6 +41,10 @@ class Game:
     def _set_player_choice(self, player_choice: Future, choice: CoinChoice) -> None:
         if not player_choice.done():
             player_choice.set_result(choice)
+            
+            
+    async def _wait_for_choice( self, future: Future[CoinChoice]) -> CoinChoice:
+        return await future
     
     
     def _calculate_scores(
@@ -168,11 +172,16 @@ class Game:
             self._player_2_choice = Future()
             self._round_result = Future()
                     
-            choice_1, choice_2 = await gather(
-                self._player_1_choice,
-                self._player_2_choice,
-            )
+            async with TaskGroup() as tg:
+                tg.create_task(
+                    self._wait_for_choice(self._player_1_choice)
+                )
+                tg.create_task(
+                    self._wait_for_choice(self._player_2_choice)
+                )
             
+            choice_1 = self._player_1_choice.result()
+            choice_2 = self._player_2_choice.result()
             
             luck_player = self._calculate_scores(
                 choice_1,
